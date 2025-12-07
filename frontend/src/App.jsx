@@ -6,9 +6,12 @@ import {
 import Dashboard from './components/Dashboard';
 import UploadCV from './components/UploadCV';
 import SearchCandidates from './components/SearchCandidates';
+import CandidateCard from './components/CandidateCard';
 import { checkHealth } from './services/api';
+import CandidateList from './components/CandidateList';
 
 function App() {
+  const [previewCandidate, setPreviewCandidate] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [backendStatus, setBackendStatus] = useState('checking');
   const [refreshKey, setRefreshKey] = useState(0);
@@ -24,6 +27,13 @@ function App() {
     // Refresh dashboard when upload succeeds
     setRefreshKey(prev => prev + 1);
     // Show notification
+
+    setPreviewCandidate({
+      ...result.data,
+      score: 0.75,          
+      skills_list: result.data.skills.join(', ') || ''
+    });
+
     setTimeout(() => {
       alert('CV đã được xử lý thành công! Bạn có thể tìm kiếm ứng viên này trong tab Tìm kiếm.');
     }, 500);
@@ -32,6 +42,7 @@ function App() {
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     { id: 'upload', label: 'Upload CV', icon: Upload },
+    { id: 'list', label: 'Danh sách CV', icon: Home },
     { id: 'search', label: 'Tìm kiếm', icon: Search },
   ];
 
@@ -131,7 +142,22 @@ function App() {
         {/* Tab Content */}
         <div className="animate-slide-in">
           {activeTab === 'dashboard' && <Dashboard key={refreshKey} />}
-          {activeTab === 'upload' && <UploadCV onUploadSuccess={handleUploadSuccess} />}
+          {activeTab === 'upload' && (
+            <>
+              <UploadCV onUploadSuccess={handleUploadSuccess} />
+
+              {previewCandidate && (
+                <div className="mt-8">
+                  <h3 className="text-xl font-bold mb-4 text-gray-800">
+                    Ứng viên vừa phân tích
+                  </h3>
+
+                  <CandidateCard candidate={previewCandidate} />
+                </div>
+              )}
+            </>
+          )}
+          {activeTab === 'list' && <CandidateList />}
           {activeTab === 'search' && <SearchCandidates />}
         </div>
       </main>

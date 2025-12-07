@@ -52,10 +52,7 @@ class VectorStore:
             str: ID của document đã lưu
         """
         try:
-            # Tạo ID duy nhất
             doc_id = str(uuid.uuid4())
-            
-            # Chuẩn hóa metadata (ChromaDB yêu cầu flat dict)
             metadata = self._prepare_metadata(cv_data, file_name)
             
             # Lưu vào collection
@@ -84,7 +81,7 @@ class VectorStore:
         Returns:
             Dict: Metadata đã chuẩn hóa
         """
-        # Chuyển list skills thành string
+
         skills_list = cv_data.get("skills", [])
         skills_str = ", ".join(skills_list) if isinstance(skills_list, list) else str(skills_list)
         
@@ -121,13 +118,8 @@ class VectorStore:
             Dict: Kết quả tìm kiếm
         """
         try:
-            # Xây dựng filter query
             where_clause = {"years_exp": {"$gte": min_exp}}
             
-            # Note: ChromaDB không hỗ trợ filter array tốt
-            # Nên việc filter skills sẽ làm ở post-processing
-            
-            # Thực hiện tìm kiếm
             results = self.collection.query(
                 query_embeddings=[query_embedding],
                 n_results=n_results,
@@ -164,7 +156,6 @@ class VectorStore:
         for i in range(len(results['ids'][0])):
             candidate_skills = results['metadatas'][0][i].get('skills_list', '').lower()
             
-            # Kiểm tra xem có đủ skills không
             has_required = all(
                 skill.lower() in candidate_skills 
                 for skill in required_skills

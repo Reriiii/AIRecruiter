@@ -4,9 +4,9 @@ const API_BASE_URL = 'http://localhost:8000';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  // headers: {
+  //   'Content-Type': 'application/json',
+  // },
 });
 
 /**
@@ -18,11 +18,7 @@ export const uploadCV = async (file) => {
   const formData = new FormData();
   formData.append('file', file);
   
-  const response = await api.post('/api/candidates', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
+  const response = await api.post('/api/candidates', formData);
   
   return response.data;
 };
