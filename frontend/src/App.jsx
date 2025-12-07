@@ -48,7 +48,7 @@ function App() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">
-                  Local Smart ATS
+                  AIRecruiter
                 </h1>
                 <p className="text-sm text-gray-500">
                   AI-Powered Recruitment System
@@ -136,24 +136,27 @@ function App() {
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 mt-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* Fixed Footer */}
+      <footer className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="text-sm text-gray-600">
               © 2025 Local Smart ATS. All rights reserved.
             </div>
+
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <Shield size={16} className="text-green-600" />
                 <span>Privacy-First Design</span>
               </div>
+
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <Cpu size={16} className="text-blue-600" />
                 <span>Powered by Local AI</span>
               </div>
+
               <a
-                href="https://github.com"
+                href="https://github.com/Reriiii/AIRecruiter"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
@@ -165,6 +168,7 @@ function App() {
           </div>
         </div>
       </footer>
+
     </div>
   );
 }

@@ -20,8 +20,8 @@ from app.models.schemas import (
 # ============================================================================
 
 app = FastAPI(
-    title="Local Smart ATS API",
-    description="API for AI-powered Applicant Tracking System (Offline)",
+    title="AIRecruiter",
+    description="API for AI-powered Applicant Tracking System",
     version="2.0",
 )
 

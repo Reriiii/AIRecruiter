@@ -61,3 +61,7 @@ Thumbs.db
 .DS_Store
 
 /llm_models
+
+test_db.py
+test.py
+run.txt
