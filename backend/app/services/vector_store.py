@@ -1,7 +1,24 @@
 import chromadb
 import uuid
+import json
+import os
 from typing import Dict, List, Optional
 from datetime import datetime
+
+def normalize_metadata(metadata: dict):
+    fixed = {}
+
+    for k, v in metadata.items():
+        if isinstance(v, list):
+            fixed[k] = ", ".join(map(str, v))  
+        elif isinstance(v, dict):
+            fixed[k] = json.dumps(v, ensure_ascii=False)  
+        elif v is None:
+            fixed[k] = ""
+        else:
+            fixed[k] = v
+
+    return fixed
 
 class VectorStore:
     """
@@ -18,13 +35,11 @@ class VectorStore:
         print(f"💾 Đang khởi tạo Vector Database tại: {db_path}")
         
         try:
-            # Tạo client persistent (lưu xuống ổ cứng)
             self.client = chromadb.PersistentClient(path=db_path)
             
-            # Tạo hoặc lấy collection
             self.collection = self.client.get_or_create_collection(
                 name="candidates",
-                metadata={"hnsw:space": "cosine"}  # Sử dụng cosine similarity
+                metadata={"hnsw:space": "cosine"} 
             )
             
             print(f"✅ Vector Database sẵn sàng. Số lượng ứng viên: {self.collection.count()}")
@@ -60,10 +75,12 @@ class VectorStore:
                 ids=[doc_id],
                 embeddings=[embedding],
                 metadatas=[metadata],
-                documents=[cv_text]  # Lưu raw text để có thể RAG sau này
+                documents=[cv_text] 
             )
             
-            print(f"✅ Đã lưu ứng viên: {metadata.get('full_name')} (ID: {doc_id[:8]}...)")
+            print(f"Đã lưu ứng viên: {metadata.get('full_name')} (ID: {doc_id[:8]}...)")
+            with open(f"./data/full_profiles/{doc_id}.json", "w", encoding="utf-8") as f:
+                json.dump(cv_data, f, ensure_ascii=False, indent=2)
             
             return doc_id
             
@@ -71,32 +88,27 @@ class VectorStore:
             raise Exception(f"Lỗi khi lưu ứng viên: {e}")
 
     def _prepare_metadata(self, cv_data: Dict, file_name: str = "") -> Dict:
-        """
-        Chuẩn bị metadata theo format của ChromaDB (flat dict, no nested)
-        
-        Args:
-            cv_data: Dữ liệu CV
-            file_name: Tên file
-            
-        Returns:
-            Dict: Metadata đã chuẩn hóa
-        """
+        skills = cv_data.get("skills", [])
+        projects = cv_data.get("projects", [])
+        education = cv_data.get("education", [])
 
-        skills_list = cv_data.get("skills", [])
-        skills_str = ", ".join(skills_list) if isinstance(skills_list, list) else str(skills_list)
-        
-        metadata = {
-            "full_name": str(cv_data.get("full_name", "N/A")),
-            "email": str(cv_data.get("email", "N/A")),
-            "role": str(cv_data.get("role", "N/A")),
+        gpa_values = [e["gpa"] for e in education if e.get("gpa") is not None]
+        project_scores = [p["score"] for p in projects if p.get("score") is not None]
+
+        raw_metadata = {
+            "full_name": cv_data.get("full_name", "N/A"),
+            "email": cv_data.get("email", "N/A"),
+            "role": cv_data.get("role", "N/A"),
             "years_exp": int(cv_data.get("years_exp", 0)),
-            "skills_list": skills_str,
-            "education": str(cv_data.get("education", "N/A")),
+            "gpa": float(sum(gpa_values) / len(gpa_values)) if gpa_values else 0.0,
+            "project_score": float(sum(project_scores) / len(project_scores)) if project_scores else 0.0,
+            "skills_list": ", ".join(skills),
+
             "file_source": file_name,
             "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
-        
-        return metadata
+
+        return normalize_metadata(raw_metadata)
 
     def search_candidates(
         self, 
@@ -127,7 +139,6 @@ class VectorStore:
                 include=["embeddings", "metadatas", "documents", "distances"]
             )
             
-            # Post-process: filter theo skills nếu có
             if required_skills and results['ids']:
                 filtered_results = self._filter_by_skills(results, required_skills)
                 return filtered_results
@@ -174,24 +185,29 @@ class VectorStore:
             'distances': [filtered_distances]
         }
 
-    def get_all_candidates(self, limit: int = 100) -> Dict:
-        """
-        Lấy danh sách tất cả ứng viên
-        
-        Args:
-            limit: Số lượng tối đa
-            
-        Returns:
-            Dict: Danh sách ứng viên
-        """
-        try:
-            results = self.collection.get(
-                limit=limit,
-                include=["metadatas"]
-            )
-            return results
-        except Exception as e:
-            raise Exception(f"Lỗi khi lấy danh sách ứng viên: {e}")
+    def get_all_candidates(self, limit=100):
+        results = self.collection.get(limit=limit, include=["metadatas"])
+
+        full_results = []
+
+        for i, meta in enumerate(results["metadatas"]):
+            cid = results["ids"][i]
+
+            profile = {}
+            file_path = f"./data/full_profiles/{cid}.json"
+
+            if os.path.exists(file_path):
+                with open(file_path, "r", encoding="utf-8") as f:
+                    profile = json.load(f)
+
+            full_results.append({
+                "id": cid,
+                **meta,
+                **profile
+            })
+
+        return full_results
+
 
     def delete_candidate(self, candidate_id: str) -> bool:
         """

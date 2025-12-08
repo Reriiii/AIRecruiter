@@ -89,7 +89,7 @@ async def get_stats():
             detail=f"Lỗi khi lấy thống kê: {str(e)}"
         )
 
-@app.post("/api/candidates", response_model=UploadResponse)
+@app.post("/api/candidates")
 async def upload_cv(file: UploadFile = File(...)):
     """
     Upload và xử lý CV
@@ -205,15 +205,20 @@ async def search_candidates(
                 candidate = CandidateMatch(
                     id=results['ids'][0][i],
                     score=round(similarity_score, 4),
+
                     full_name=results['metadatas'][0][i].get('full_name', 'N/A'),
                     email=results['metadatas'][0][i].get('email', 'N/A'),
                     role=results['metadatas'][0][i].get('role', 'N/A'),
                     years_exp=results['metadatas'][0][i].get('years_exp', 0),
-                    skills_list=results['metadatas'][0][i].get('skills_list', ''),
-                    education=results['metadatas'][0][i].get('education', 'N/A'),
+
+                    skills=results['metadatas'][0][i].get('skills', []),
+                    education=results['metadatas'][0][i].get('education', []),
+                    projects=results['metadatas'][0][i].get('projects', []),
+
                     file_source=results['metadatas'][0][i].get('file_source', ''),
                     created_at=results['metadatas'][0][i].get('created_at', '')
                 )
+
                 candidates.append(candidate)
         
         print(f"✅ Tìm thấy {len(candidates)} ứng viên phù hợp")
@@ -240,20 +245,12 @@ async def search_candidates(
 async def list_candidates(limit: int = 100):
     try:
         results = vector_store.get_all_candidates(limit=limit)
-        
-        candidates = []
-        if results['ids']:
-            for i in range(len(results['ids'])):
-                candidates.append({
-                    "id": results['ids'][i],
-                    "metadata": results['metadatas'][i]
-                })
-        
+
         return {
-            "total": len(candidates),
-            "candidates": candidates
+            "total": len(results),
+            "candidates": results
         }
-        
+
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

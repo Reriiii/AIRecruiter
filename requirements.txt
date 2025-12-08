@@ -13,3 +13,4 @@ pydantic-settings==2.1.0
 fastapi-cors==0.0.6
 numpy   
 openai
+email-validator

@@ -101,44 +101,53 @@ class AIEngine:
     # ==========================================================
 
     def extract_json_from_cv(self, text: str) -> Dict:
-
         text_truncated = text[:self.max_input_chars]
-
+        
         prompt = f"""
-            You are a strict JSON generator.
+        You are an AI assistant specialized in parsing CV/Resume.
 
-            Your task:
-            Extract the following information from the CV text and output ONLY a valid JSON object.
+        Extract the following information and return ONLY a valid JSON object.
 
-            Required fields and types:
-            - full_name: string
-            - email: string
-            - role: string
-            - years_exp: integer (number only, no text)
-            - skills: array of strings
-            - education: string
+        Required format:
+        {{
+        "full_name": string,
+        "email": string,
+        "role": string,
+        "years_exp": integer,
 
-            Rules:
-            - Output MUST be valid JSON.
-            - Do NOT include markdown.
-            - Do NOT include explanations.
-            - Do NOT include any extra text outside the JSON.
-            - If a field is missing, return an empty string "" or empty array [].
-            - years_exp MUST be an integer.
-
-            CV Text:
-            {text_truncated}
-
-            Return EXACTLY in this format:
-
+        "education": [
             {{
-                "full_name": "",
-                "email": "",
-                "role": "",
-                "years_exp": 0,
-                "skills": [],
-                "education": []
+            "school": string,
+            "degree": string,
+            "major": string,
+            "gpa": number | null,
+            "time": string
             }}
+        ],
+
+        "skills": array of strings,
+
+        "projects": [
+            {{
+            "name": string,
+            "description": string,
+            "score": number (0-10)
+            }}
+        ]
+        }}
+
+        Rules:
+        - GPA must be a NUMBER (example: 3.2), not string.
+        - If GPA is not found, return null.
+        - If no project found, return empty array [].
+        - "score" must be based on:
+        + complexity
+        + technologies used
+        + real-world applicability
+        (0 = very weak, 10 = excellent)
+
+        CV TEXT:
+        {text_truncated}
         """
 
         if self.use_chatgpt:
