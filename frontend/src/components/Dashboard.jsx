@@ -15,7 +15,7 @@ const Dashboard = () => {
         getAllCandidates(10)
       ]);
       setStats(statsData);
-      setCandidates(candidatesData.candidates || []);
+      setCandidates(candidatesData.candidates || []); 
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -38,23 +38,21 @@ const Dashboard = () => {
     );
   }
 
-  // Calculate some statistics
-  const totalCandidates = stats?.total_candidates || 0;
+  // Tổng ứng viên
+  const totalCandidates = stats?.total_candidates || candidates.length;
+
+  // Kinh nghiệm trung bình
   const avgExperience = candidates.length > 0
-    ? Math.round(
-        candidates.reduce((sum, c) => sum + (c.metadata?.years_exp || 0), 0) / candidates.length
-      )
+    ? Math.round(candidates.reduce((sum, c) => sum + (c.years_exp || 0), 0) / candidates.length)
     : 0;
 
-  // Count skills
+  // Thống kê top skills
   const skillsCount = {};
   candidates.forEach(c => {
-    const skills = c.metadata?.skills_list?.split(',') || [];
+    const skills = c.skills || [];
     skills.forEach(skill => {
       const s = skill.trim().toLowerCase();
-      if (s) {
-        skillsCount[s] = (skillsCount[s] || 0) + 1;
-      }
+      if (s) skillsCount[s] = (skillsCount[s] || 0) + 1;
     });
   });
 
@@ -70,18 +68,13 @@ const Dashboard = () => {
           <BarChart3 className="text-blue-600" size={28} />
           Dashboard
         </h2>
-        <button
-          onClick={fetchData}
-          className="btn-secondary flex items-center gap-2"
-        >
-          <RefreshCw size={18} />
-          Làm mới
+        <button onClick={fetchData} className="btn-secondary flex items-center gap-2">
+          <RefreshCw size={18} /> Làm mới
         </button>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Total Candidates */}
         <div className="card bg-gradient-to-br from-blue-500 to-blue-600 text-white">
           <div className="flex items-center justify-between">
             <div>
@@ -94,7 +87,6 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Average Experience */}
         <div className="card bg-gradient-to-br from-green-500 to-green-600 text-white">
           <div className="flex items-center justify-between">
             <div>
@@ -107,7 +99,6 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Database Status */}
         <div className="card bg-gradient-to-br from-purple-500 to-purple-600 text-white">
           <div className="flex items-center justify-between">
             <div>
@@ -133,17 +124,11 @@ const Dashboard = () => {
               {candidates.slice(0, 5).map((c) => (
                 <div key={c.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>
-                    <p className="font-medium text-gray-900">
-                      {c.metadata?.full_name || 'N/A'}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      {c.metadata?.role || 'N/A'}
-                    </p>
+                    <p className="font-medium text-gray-900">{c.full_name}</p>
+                    <p className="text-sm text-gray-500">{c.role}</p>
                   </div>
                   <div className="text-right">
-                    <span className="badge badge-info">
-                      {c.metadata?.years_exp || 0} năm
-                    </span>
+                    <span className="badge badge-info">{c.years_exp || 0} năm</span>
                   </div>
                 </div>
               ))}
@@ -162,9 +147,7 @@ const Dashboard = () => {
                 <div key={skill} className="flex items-center gap-3">
                   <div className="flex-1">
                     <div className="flex justify-between mb-1">
-                      <span className="text-sm font-medium text-gray-700 capitalize">
-                        {skill}
-                      </span>
+                      <span className="text-sm font-medium text-gray-700 capitalize">{skill}</span>
                       <span className="text-sm text-gray-500">{count} người</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
