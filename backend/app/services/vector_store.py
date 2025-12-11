@@ -220,21 +220,51 @@ class VectorStore:
 
     def delete_candidate(self, candidate_id: str) -> bool:
         """
-        Xóa ứng viên khỏi database
-        
+        Xóa ứng viên khỏi DB + xóa file lưu trữ
+
         Args:
             candidate_id: ID của ứng viên
             
         Returns:
-            bool: True nếu thành công
+            bool: True nếu mọi thứ đều xóa ok
         """
+        success = True  
+        
         try:
             self.collection.delete(ids=[candidate_id])
-            print(f"🗑️ Đã xóa ứng viên ID: {candidate_id[:8]}...")
-            return True
+            print(f"Đã xóa ứng viên khỏi DB: {candidate_id[:8]}...")
         except Exception as e:
-            print(f"⚠️ Lỗi khi xóa ứng viên: {e}")
-            return False
+            print(f"⚠️ Lỗi khi xóa trong DB: {e}")
+            success = False
+
+        try:
+            json_path = f"./data/full_profiles/{candidate_id}.json"
+            if os.path.exists(json_path):
+                os.remove(json_path)
+                print(f"Đã xóa JSON: {json_path}")
+            else:
+                print(f"Không tìm thấy JSON: {json_path}")
+        except Exception as e:
+            print(f"Lỗi khi xóa JSON: {e}")
+            success = False
+
+        try:
+            folder = "./data/uploaded_cvs"
+            deleted_pdf = False
+
+            for file in os.listdir(folder):
+                if candidate_id in file:  # file chứa id
+                    os.remove(os.path.join(folder, file))
+                    print(f"Đã xóa PDF: {file}")
+                    deleted_pdf = True
+
+            if not deleted_pdf:
+                print(f"Không tìm thấy PDF của ứng viên trong {folder}")
+        except Exception as e:
+            print(f"⚠️ Lỗi khi xóa PDF: {e}")
+            success = False
+
+        return success
 
     def get_stats(self) -> Dict:
         """
