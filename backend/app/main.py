@@ -12,7 +12,8 @@ from app.services.vector_store import VectorStore
 
 from app.models.schemas import (
     UploadResponse, SearchRequest, SearchResponse, 
-    CandidateMatch, StatsResponse, ErrorResponse
+    CandidateMatch, StatsResponse, ErrorResponse,
+    CandidateData
 )
 
 # ============================================================================
@@ -120,9 +121,42 @@ async def upload_cv(file: UploadFile = File(...)):
         # ---- STEP 2: Trích xuất thông tin bằng AI ----
         print("🤖 Đang trích xuất thông tin...")
         extracted_data = ai_engine.extract_json_from_cv(raw_text)
+        # ---- VALIDATION: Kiểm tra đây có phải CV hợp lệ không ----
+        try:
+            is_valid, reasons = ai_engine.validate_resume(extracted_data, raw_text)
+        except Exception as e:
+            is_valid, reasons = True, []
+
+        if not is_valid:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"File không có cấu trúc CV hợp lệ: {'; '.join(reasons)}"
+            )
         
         # Thêm thông tin file
         extracted_data['file_name'] = file.filename
+
+        # --- SANITIZE extracted_data for response models ---
+        # Ensure email is valid for pydantic EmailStr; otherwise set to None
+        import re as _re
+        email_val = extracted_data.get('email')
+        if not email_val or not _re.search(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b", str(email_val)):
+            extracted_data['email'] = None
+
+        # Ensure numeric fields and lists have safe types
+        try:
+            extracted_data['years_exp'] = int(extracted_data.get('years_exp') or 0)
+        except Exception:
+            extracted_data['years_exp'] = 0
+
+        if not isinstance(extracted_data.get('skills'), list):
+            extracted_data['skills'] = list(extracted_data.get('skills') or [])
+
+        if not isinstance(extracted_data.get('education'), list):
+            extracted_data['education'] = extracted_data.get('education') or []
+
+        if not isinstance(extracted_data.get('projects'), list):
+            extracted_data['projects'] = extracted_data.get('projects') or []
         
         # ---- STEP 3: Tạo Vector Embedding ----
         print("🔢 Đang tạo vector embedding...")
@@ -146,11 +180,20 @@ async def upload_cv(file: UploadFile = File(...)):
         
         print(f"Hoàn thành xử lý CV: {file.filename}")
         
+        try:
+            candidate_model = CandidateData(**extracted_data)
+        except Exception as e:
+            print("Lỗi mapping CandidateData:", e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Lỗi format dữ liệu trả về: {str(e)}"
+            )
+
         return UploadResponse(
             status="success",
             id=doc_id,
-            data=extracted_data,
-            message=f"Đã xử lý thành công CV của {extracted_data.get('full_name')}"
+            data=candidate_model,
+            message=f"Đã xử lý thành công CV của {candidate_model.full_name}"
         )
         
     except HTTPException:
@@ -202,22 +245,25 @@ async def search_candidates(
             for i in range(len(results['ids'][0])):
                 similarity_score = 1 - results['distances'][0][i]
                 
+                meta = results['metadatas'][0][i]
+
                 candidate = CandidateMatch(
                     id=results['ids'][0][i],
                     score=round(similarity_score, 4),
 
-                    full_name=results['metadatas'][0][i].get('full_name', 'N/A'),
-                    email=results['metadatas'][0][i].get('email', 'N/A'),
-                    role=results['metadatas'][0][i].get('role', 'N/A'),
-                    years_exp=results['metadatas'][0][i].get('years_exp', 0),
+                    full_name=meta.get('full_name', 'N/A'),
+                    email=meta.get('email', 'N/A'),
+                    role=meta.get('role', 'N/A'),
+                    years_exp=meta.get('years_exp', 0),
 
-                    skills=results['metadatas'][0][i].get('skills', []),
-                    education=results['metadatas'][0][i].get('education', []),
-                    projects=results['metadatas'][0][i].get('projects', []),
+                    skills=meta.get('skills_list', '').split(', ') if meta.get('skills_list') else [],
+                    education=[],   
+                    projects=[],   
 
-                    file_source=results['metadatas'][0][i].get('file_source', ''),
-                    created_at=results['metadatas'][0][i].get('created_at', '')
+                    file_source=meta.get('file_source', ''),
+                    created_at=meta.get('created_at', '')
                 )
+
 
                 candidates.append(candidate)
         

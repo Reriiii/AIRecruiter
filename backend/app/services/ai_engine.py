@@ -240,6 +240,45 @@ class AIEngine:
 
         return data
 
+    def validate_resume(self, data: Dict, raw_text: str = "") -> (bool, list):
+        """
+        Basic heuristic checks to determine if extracted data corresponds to a valid resume.
+
+        Returns: (is_valid, reasons)
+        - is_valid: bool
+        - reasons: list of strings explaining validation failures
+        """
+        reasons = []
+
+        # Check full name
+        full_name = (data.get('full_name') or '').strip()
+        if not full_name or full_name.upper() == 'N/A' or len(full_name) < 2:
+            reasons.append('Không tìm thấy tên ứng viên')
+
+        # Check email
+        email = (data.get('email') or '')
+        email_match = re.search(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b", email)
+        if not email_match:
+            reasons.append('Không tìm thấy email hợp lệ')
+
+        # Check presence of role / skills / experience
+        role = (data.get('role') or '').strip()
+        skills = data.get('skills') or []
+        try:
+            years = int(data.get('years_exp') or 0)
+        except Exception:
+            years = 0
+
+        if (not role or role.upper() == 'N/A') and (not skills or len(skills) == 0) and years == 0:
+            reasons.append('Thiếu thông tin nghề nghiệp (vị trí / kỹ năng / kinh nghiệm)')
+
+        # If raw text is extremely short, reject
+        if raw_text and len(raw_text.strip()) < 100:
+            reasons.append('Nội dung quá ngắn để là một CV hợp lệ')
+
+        is_valid = len(reasons) == 0
+        return is_valid, reasons
+
     # ==========================================================
     # ================= EMBEDDING ==============================
     # ==========================================================

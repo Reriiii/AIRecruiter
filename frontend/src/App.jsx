@@ -3,47 +3,33 @@ import {
   Home, Upload, Search, BarChart3, 
   Cpu, Shield, Zap, Github 
 } from 'lucide-react';
+
 import Dashboard from './components/Dashboard';
 import UploadCV from './components/UploadCV';
 import SearchCandidates from './components/SearchCandidates';
-import CandidateCard from './components/CandidateCard';
-import { checkHealth } from './services/api';
 import CandidateList from './components/CandidateList';
+import { checkHealth } from './services/api';
 
 function App() {
-  const [previewCandidate, setPreviewCandidate] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [backendStatus, setBackendStatus] = useState('checking');
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    // Check backend health on mount
     checkHealth()
       .then(() => setBackendStatus('online'))
       .catch(() => setBackendStatus('offline'));
   }, []);
 
   const handleUploadSuccess = () => {
-    // Refresh dashboard when upload succeeds
     setRefreshKey(prev => prev + 1);
-    // Show notification
-
-    setPreviewCandidate({
-      ...result.data,
-      score: 0.75,          
-      skills_list: result.data.skills.join(', ') || ''
-    });
-
-    setTimeout(() => {
-      alert('CV đã được xử lý thành công! Bạn có thể tìm kiếm ứng viên này trong tab Tìm kiếm.');
-    }, 500);
   };
 
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     { id: 'upload', label: 'Upload CV', icon: Upload },
     { id: 'list', label: 'Danh sách CV', icon: Home },
-    { id: 'search', label: 'Tìm kiếm', icon: Search },
+    { id: 'search', label: 'Tìm kiếm', icon: Search }
   ];
 
   return (
@@ -52,36 +38,34 @@ function App() {
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
-            {/* Logo & Title */}
+            {/* Logo */}
             <div className="flex items-center gap-3">
               <div className="bg-gradient-to-br from-blue-600 to-blue-700 p-2 rounded-lg">
                 <Cpu className="text-white" size={28} />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">
-                  AIRecruiter
-                </h1>
-                <p className="text-sm text-gray-500">
-                  AI-Powered Recruitment System
-                </p>
+                <h1 className="text-2xl font-bold text-gray-900">AIRecruiter</h1>
+                <p className="text-sm text-gray-500">AI-Powered Recruitment System</p>
               </div>
             </div>
 
-            {/* Status & Features */}
+            {/* Backend Status */}
             <div className="flex items-center gap-4">
-              {/* Backend Status */}
               <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${
-                  backendStatus === 'online' ? 'bg-green-500 animate-pulse' :
-                  backendStatus === 'offline' ? 'bg-red-500' :
-                  'bg-yellow-500 animate-pulse'
-                }`} />
+                <div
+                  className={`w-2 h-2 rounded-full ${
+                    backendStatus === 'online'
+                      ? 'bg-green-500 animate-pulse'
+                      : backendStatus === 'offline'
+                      ? 'bg-red-500'
+                      : 'bg-yellow-500 animate-pulse'
+                  }`}
+                />
                 <span className="text-sm text-gray-600">
                   Backend {backendStatus === 'online' ? 'Online' : backendStatus === 'offline' ? 'Offline' : 'Checking...'}
                 </span>
               </div>
 
-              {/* Features Badge */}
               <div className="hidden md:flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-lg">
                 <Shield className="text-blue-600" size={16} />
                 <span className="text-sm font-medium text-blue-700">100% Offline</span>
@@ -89,34 +73,33 @@ function App() {
             </div>
           </div>
 
-          {/* Navigation Tabs */}
+          {/* Tabs */}
           <nav className="flex gap-1 -mb-px">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`
-                    flex items-center gap-2 px-6 py-3 font-medium text-sm
-                    border-b-2 transition-all duration-200
-                    ${activeTab === tab.id
+            {tabs.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                onClick={() => setActiveTab(id)}
+                className={`
+                  flex items-center gap-2 px-6 py-3 font-medium text-sm
+                  border-b-2 transition-all duration-200
+                  ${
+                    activeTab === id
                       ? 'border-blue-600 text-blue-600 bg-blue-50'
                       : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                    }
-                  `}
-                >
-                  <Icon size={18} />
-                  {tab.label}
-                </button>
-              );
-            })}
+                  }
+                `}
+              >
+                <Icon size={18} />
+                {label}
+              </button>
+            ))}
           </nav>
         </div>
       </header>
 
-      {/* Main Content */}
+      {/* Main */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
         {backendStatus === 'offline' && (
           <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
             <div className="flex items-start gap-3">
@@ -126,7 +109,7 @@ function App() {
               <div>
                 <h3 className="font-bold text-red-900">Backend không khả dụng</h3>
                 <p className="text-sm text-red-700 mt-1">
-                  Không thể kết nối tới backend server. Vui lòng kiểm tra xem server có đang chạy tại http://localhost:8000 không.
+                  Vui lòng kiểm tra server backend tại http://localhost:8000
                 </p>
                 <button
                   onClick={() => window.location.reload()}
@@ -142,27 +125,13 @@ function App() {
         {/* Tab Content */}
         <div className="animate-slide-in">
           {activeTab === 'dashboard' && <Dashboard key={refreshKey} />}
-          {activeTab === 'upload' && (
-            <>
-              <UploadCV onUploadSuccess={handleUploadSuccess} />
-
-              {previewCandidate && (
-                <div className="mt-8">
-                  <h3 className="text-xl font-bold mb-4 text-gray-800">
-                    Ứng viên vừa phân tích
-                  </h3>
-
-                  <CandidateCard candidate={previewCandidate} />
-                </div>
-              )}
-            </>
-          )}
+          {activeTab === 'upload' && <UploadCV onUploadSuccess={handleUploadSuccess} />}
           {activeTab === 'list' && <CandidateList />}
           {activeTab === 'search' && <SearchCandidates />}
         </div>
       </main>
 
-      {/* Fixed Footer */}
+      {/* Footer */}
       <footer className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
@@ -194,7 +163,6 @@ function App() {
           </div>
         </div>
       </footer>
-
     </div>
   );
 }

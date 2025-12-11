@@ -3,7 +3,7 @@ from typing import List, Optional
 from datetime import datetime
 
 # =======================
-# EDUCATION ITEM (✅ SAFE)
+# EDUCATION ITEM 
 # =======================
 class EducationItem(BaseModel):
     school: Optional[str] = None
@@ -14,7 +14,7 @@ class EducationItem(BaseModel):
 
 
 # =======================
-# PROJECT ITEM (✅ SAFE)
+# PROJECT ITEM 
 # =======================
 class ProjectItem(BaseModel):
     name: Optional[str] = None
@@ -23,7 +23,7 @@ class ProjectItem(BaseModel):
 
 
 # =======================
-# CORE CANDIDATE DATA ✅ KHÔNG BAO GIỜ 500
+# CORE CANDIDATE DATA 
 # =======================
 class CandidateData(BaseModel):
     full_name: Optional[str] = None
@@ -40,7 +40,7 @@ class CandidateData(BaseModel):
 
 
 # =======================
-# UPLOAD RESPONSE (✅ SAFE)
+# UPLOAD RESPONSE
 # =======================
 class UploadResponse(BaseModel):
     status: str
@@ -50,7 +50,7 @@ class UploadResponse(BaseModel):
 
 
 # =======================
-# SEARCH REQUEST (✅ GIỮ NGUYÊN)
+# SEARCH REQUEST
 # =======================
 class SearchRequest(BaseModel):
     jd_text: str = Field(..., min_length=10)
@@ -60,7 +60,7 @@ class SearchRequest(BaseModel):
 
 
 # =======================
-# MATCHED CANDIDATE ✅ ĐỒNG BỘ FRONTEND
+# MATCHED CANDIDATE 
 # =======================
 class CandidateMatch(BaseModel):
     id: str

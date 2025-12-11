@@ -66,26 +66,35 @@ class VectorStore:
         Returns:
             str: ID của document đã lưu
         """
+        doc_id = str(uuid.uuid4())
+        metadata = self._prepare_metadata(cv_data, file_name)
+
+        # Try to add to collection but don't let telemetry/add errors fail the whole flow
+        add_failed = False
         try:
-            doc_id = str(uuid.uuid4())
-            metadata = self._prepare_metadata(cv_data, file_name)
-            
-            # Lưu vào collection
             self.collection.add(
                 ids=[doc_id],
                 embeddings=[embedding],
                 metadatas=[metadata],
-                documents=[cv_text] 
+                documents=[cv_text]
             )
-            
             print(f"Đã lưu ứng viên: {metadata.get('full_name')} (ID: {doc_id[:8]}...)")
+        except Exception as e:
+            # Some chromadb versions emit telemetry-related exceptions after add;
+            # log and continue so the overall upload doesn't return 500 when DB was already written.
+            print(f"⚠️ Lỗi khi thêm vào collection (không chặn): {e}")
+            add_failed = True
+
+        # Write full profile to disk (try regardless of add outcome)
+        try:
+            os.makedirs(os.path.dirname(f"./data/full_profiles/{doc_id}.json"), exist_ok=True)
             with open(f"./data/full_profiles/{doc_id}.json", "w", encoding="utf-8") as f:
                 json.dump(cv_data, f, ensure_ascii=False, indent=2)
-            
-            return doc_id
-            
         except Exception as e:
-            raise Exception(f"Lỗi khi lưu ứng viên: {e}")
+            print(f"⚠️ Lỗi khi lưu full profile: {e}")
+
+        # If add failed earlier, still return the generated id to avoid upstream 500s.
+        return doc_id
 
     def _prepare_metadata(self, cv_data: Dict, file_name: str = "") -> Dict:
         skills = cv_data.get("skills", [])

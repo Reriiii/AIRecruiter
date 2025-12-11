@@ -9,89 +9,76 @@ const UploadCV = ({ onUploadSuccess }) => {
   const [uploadedFile, setUploadedFile] = useState(null);
   const fileInputRef = useRef(null);
 
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
+  /* ------------------------ Helper ------------------------ */
+  const normalizeResponse = (raw) => {
+    if (!raw || typeof raw !== 'object') return null;
 
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setIsDragging(false);
-    
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      handleFileUpload(files[0]);
+    // axios response → { data }
+    if ('data' in raw) {
+      const wrapper = raw.data;
+      if (wrapper && typeof wrapper === 'object') {
+        if ('data' in wrapper) return wrapper.data;     // UploadResponse
+        return wrapper;                                 // CandidateData
+      }
     }
+
+    // UploadResponse trực tiếp
+    if ('data' in raw) return raw.data;
+
+    // CandidateData trực tiếp
+    if ('full_name' in raw || 'role' in raw) return raw;
+
+    return null;
   };
 
-  const handleFileSelect = (e) => {
-    const files = e.target.files;
-    if (files.length > 0) {
-      handleFileUpload(files[0]);
-    }
-  };
-
+  /* ------------------------ File Upload ------------------------ */
   const handleFileUpload = async (file) => {
-    // Validate file type
-    if (!file.name.endsWith('.pdf')) {
-      setUploadStatus({
-        type: 'error',
-        message: 'Chỉ chấp nhận file PDF'
-      });
-      return;
-    }
+    if (!file.name.endsWith('.pdf'))
+      return setUploadStatus({ type: 'error', message: 'Chỉ chấp nhận file PDF' });
 
-    // Validate file size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      setUploadStatus({
-        type: 'error',
-        message: 'File quá lớn. Kích thước tối đa là 10MB'
-      });
-      return;
-    }
+    if (file.size > 10 * 1024 * 1024)
+      return setUploadStatus({ type: 'error', message: 'File vượt quá 10MB' });
 
     setUploading(true);
     setUploadStatus(null);
     setUploadedFile(file);
 
     try {
-      const result = await uploadCV(file);
-      
+      const raw = await uploadCV(file);
+      const candidate = normalizeResponse(raw);
+
+      if (!candidate)
+        return setUploadStatus({ type: 'error', message: 'Phản hồi server không hợp lệ.' });
+
+      const safeSkills = Array.isArray(candidate.skills) ? candidate.skills : [];
+
       setUploadStatus({
         type: 'success',
-        message: `Đã xử lý CV của ${result.data.full_name}`,
-        data: result
+        message: `Đã xử lý CV của ${candidate.full_name || '(Không rõ)'}`,
+        data: { ...candidate, skills: safeSkills }
       });
 
-      // Callback to parent
-      if (onUploadSuccess) {
-        onUploadSuccess(result);
-      }
-
-      // Reset after 3 seconds
-      setTimeout(() => {
-        setUploadedFile(null);
-        setUploadStatus(null);
-      }, 3000);
+      onUploadSuccess?.(candidate);
 
     } catch (error) {
-      setUploadStatus({
-        type: 'error',
-        message: error.response?.data?.detail || 'Lỗi khi upload CV'
-      });
+      const detail = error?.response?.data?.detail || error?.message || 'Lỗi upload CV';
+      setUploadStatus({ type: 'error', message: detail });
     } finally {
       setUploading(false);
     }
   };
 
-  const openFileDialog = () => {
-    fileInputRef.current?.click();
+  /* ------------------------ Drag & Drop ------------------------ */
+  const handleDragOver = (e) => { e.preventDefault(); setIsDragging(true); };
+  const handleDragLeave = (e) => { e.preventDefault(); setIsDragging(false); };
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const f = e.dataTransfer.files?.[0];
+    if (f) handleFileUpload(f);
   };
+
+  const openFileDialog = () => fileInputRef.current?.click();
 
   return (
     <div className="card">
@@ -100,19 +87,16 @@ const UploadCV = ({ onUploadSuccess }) => {
         Upload CV
       </h2>
 
-      {/* Drag & Drop Area */}
+      {/* Upload Box */}
       <div
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={openFileDialog}
         className={`
-          border-2 border-dashed rounded-xl p-12 text-center cursor-pointer
+          border-2 border-dashed rounded-xl p-12 text-center cursor-pointer 
           transition-all duration-200
-          ${isDragging 
-            ? 'border-blue-500 bg-blue-50' 
-            : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
-          }
+          ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'}
           ${uploading ? 'opacity-50 cursor-not-allowed' : ''}
         `}
       >
@@ -120,32 +104,23 @@ const UploadCV = ({ onUploadSuccess }) => {
           ref={fileInputRef}
           type="file"
           accept=".pdf"
-          onChange={handleFileSelect}
+          onChange={(e) => handleFileUpload(e.target.files?.[0])}
           className="hidden"
-          disabled={uploading}
         />
 
         {uploading ? (
           <div className="flex flex-col items-center gap-3">
             <Loader className="animate-spin text-blue-600" size={48} />
-            <p className="text-gray-600 font-medium">Đang xử lý CV...</p>
-            {uploadedFile && (
-              <p className="text-sm text-gray-500">{uploadedFile.name}</p>
-            )}
+            <p className="font-medium text-gray-600">Đang xử lý CV...</p>
+            {uploadedFile && <p className="text-sm text-gray-500">{uploadedFile.name}</p>}
           </div>
         ) : (
           <div className="flex flex-col items-center gap-3">
             <div className="bg-blue-100 p-4 rounded-full">
               <FileText className="text-blue-600" size={40} />
             </div>
-            <div>
-              <p className="text-lg font-semibold text-gray-700">
-                Kéo thả file PDF vào đây
-              </p>
-              <p className="text-sm text-gray-500 mt-1">
-                hoặc click để chọn file (tối đa 10MB)
-              </p>
-            </div>
+            <p className="text-lg font-semibold text-gray-700">Kéo thả PDF vào đây</p>
+            <p className="text-sm text-gray-500">(hoặc click để chọn file — tối đa 10MB)</p>
           </div>
         )}
       </div>
@@ -155,28 +130,26 @@ const UploadCV = ({ onUploadSuccess }) => {
         <div
           className={`
             mt-4 p-4 rounded-lg flex items-start gap-3 animate-slide-in
-            ${uploadStatus.type === 'success' 
-              ? 'bg-green-50 border border-green-200' 
-              : 'bg-red-50 border border-red-200'
-            }
+            ${uploadStatus.type === 'success'
+              ? 'bg-green-50 border border-green-200'
+              : 'bg-red-50 border border-red-200'}
           `}
         >
-          {uploadStatus.type === 'success' ? (
-            <CheckCircle className="text-green-600 flex-shrink-0" size={24} />
-          ) : (
-            <AlertCircle className="text-red-600 flex-shrink-0" size={24} />
-          )}
-          <div className="flex-1">
-            <p className={`font-medium ${
-              uploadStatus.type === 'success' ? 'text-green-800' : 'text-red-800'
-            }`}>
+          {uploadStatus.type === 'success'
+            ? <CheckCircle className="text-green-600" size={24} />
+            : <AlertCircle className="text-red-600" size={24} />
+          }
+
+          <div>
+            <p className={uploadStatus.type === 'success' ? 'text-green-800 font-medium' : 'text-red-800 font-medium'}>
               {uploadStatus.message}
             </p>
+
             {uploadStatus.data && (
-              <div className="mt-2 text-sm text-gray-600">
-                <p><strong>Vị trí:</strong> {uploadStatus.data.data.role}</p>
-                <p><strong>Kinh nghiệm:</strong> {uploadStatus.data.data.years_exp} năm</p>
-                <p><strong>Kỹ năng:</strong> {uploadStatus.data.data.skills.join(', ')}</p>
+              <div className="mt-2 text-sm text-gray-700">
+                <p><strong>Vị trí:</strong> {uploadStatus.data.role}</p>
+                <p><strong>Kinh nghiệm:</strong> {uploadStatus.data.years_exp} năm</p>
+                <p><strong>Kỹ năng:</strong> {uploadStatus.data.skills.join(', ')}</p>
               </div>
             )}
           </div>
