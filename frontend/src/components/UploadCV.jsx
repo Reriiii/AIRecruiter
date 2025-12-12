@@ -45,7 +45,7 @@ const UploadCV = ({ onUploadSuccess }) => {
     setUploadedFile(file);
 
     try {
-      const raw = await uploadCV(file, { provider, model });   // ⚡ gửi đúng format
+      const raw = await uploadCV(file, { provider, model });   
       const candidate = normalizeResponse(raw);
 
       if (!candidate)
@@ -80,7 +80,13 @@ const UploadCV = ({ onUploadSuccess }) => {
     if (f) handleFileUpload(f);
   };
 
-  const openFileDialog = () => fileInputRef.current?.click();
+  const openFileDialog = () => {
+    if (!provider || !model) {
+      setUploadStatus({ type: "error", message: "Vui lòng chọn provider và model trước" });
+      return;
+    }
+    fileInputRef.current?.click();
+  };
 
   /* ------------------------ JSX ------------------------ */
   return (
@@ -92,13 +98,14 @@ const UploadCV = ({ onUploadSuccess }) => {
 
       {/* Upload Box */}
       <div
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
+        onDragOver={!provider || !model ? undefined : handleDragOver}
+        onDragLeave={!provider || !model ? undefined : handleDragLeave}
+        onDrop={!provider || !model ? undefined : handleDrop}
         onClick={openFileDialog}
         className={`
           border-2 border-dashed rounded-xl p-12 text-center cursor-pointer 
           transition-all duration-200
+          ${!provider || !model ? 'border-gray-300 bg-gray-100 cursor-not-allowed opacity-60' : ''}
           ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'}
           ${uploading ? 'opacity-50 cursor-not-allowed' : ''}
         `}
@@ -109,6 +116,7 @@ const UploadCV = ({ onUploadSuccess }) => {
           accept=".pdf"
           onChange={(e) => handleFileUpload(e.target.files?.[0])}
           className="hidden"
+          disabled={!provider || !model || uploading}
         />
 
         {uploading ? (
@@ -116,6 +124,14 @@ const UploadCV = ({ onUploadSuccess }) => {
             <Loader className="animate-spin text-blue-600" size={48} />
             <p className="font-medium text-gray-600">Đang xử lý CV...</p>
             {uploadedFile && <p className="text-sm text-gray-500">{uploadedFile.name}</p>}
+          </div>
+        ) : !provider || !model ? (
+          <div className="flex flex-col items-center gap-3">
+            <div className="bg-gray-200 p-4 rounded-full">
+              <FileText className="text-gray-400" size={40} />
+            </div>
+            <p className="text-lg font-semibold text-gray-500">Chọn Provider & Model trước</p>
+            <p className="text-sm text-gray-400">(Vui lòng hoàn thành các bước setup ở dưới)</p>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-3">
@@ -137,7 +153,7 @@ const UploadCV = ({ onUploadSuccess }) => {
           disabled={uploading}
           onChange={(e) => {
             setProvider(e.target.value);
-            setModel(""); // reset model
+            setModel(""); 
           }}
         >
           <option value="">-- Chọn Provider --</option>
