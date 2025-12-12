@@ -1,13 +1,17 @@
-openai:
-  enabled: true
-  model: "gpt-5-nano"
-  max_tokens: 6000
+providers:
 
-gpt4all:
-  enabled: false
-  model_name: "Meta-Llama-3-8B-Instruct.Q4_0.gguf"
-  model_path: null
-  device: "cpu"
+  openai:
+    enabled: true
+    models:
+      - id: "gpt-5-nano"
+        max_tokens: 6000
+
+  gpt4all:
+    enabled: true
+    models:
+      - id: "Meta-Llama-3-8B-Instruct.Q4_0.gguf"
+        path: "./llm_models"
+        device: "cpu"
 
 embedding:
   model_name: "all-MiniLM-L6-v2"

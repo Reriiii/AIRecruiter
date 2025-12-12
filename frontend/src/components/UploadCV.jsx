@@ -1,38 +1,39 @@
 import React, { useState, useRef } from 'react';
 import { Upload, FileText, CheckCircle, AlertCircle, Loader } from 'lucide-react';
 import { uploadCV } from '../services/api';
+import { MODEL_PROVIDERS } from "../modelConfig";   
 
 const UploadCV = ({ onUploadSuccess }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState(null);
+
+  const [provider, setProvider] = useState("");     
+  const [model, setModel] = useState("");           
+
   const [uploadedFile, setUploadedFile] = useState(null);
   const fileInputRef = useRef(null);
 
   /* ------------------------ Helper ------------------------ */
   const normalizeResponse = (raw) => {
     if (!raw || typeof raw !== 'object') return null;
-
-    // axios response → { data }
     if ('data' in raw) {
-      const wrapper = raw.data;
-      if (wrapper && typeof wrapper === 'object') {
-        if ('data' in wrapper) return wrapper.data;     // UploadResponse
-        return wrapper;                                 // CandidateData
+      const w = raw.data;
+      if (w && typeof w === 'object') {
+        if ('data' in w) return w.data;
+        return w;
       }
     }
-
-    // UploadResponse trực tiếp
-    if ('data' in raw) return raw.data;
-
-    // CandidateData trực tiếp
-    if ('full_name' in raw || 'role' in raw) return raw;
-
+    if ('full_name' in raw) return raw;
     return null;
   };
 
-  /* ------------------------ File Upload ------------------------ */
+  /* ------------------------ Upload ------------------------ */
   const handleFileUpload = async (file) => {
+    if (!provider || !model) {
+      return setUploadStatus({ type: "error", message: "Vui lòng chọn provider và model." });
+    }
+
     if (!file.name.endsWith('.pdf'))
       return setUploadStatus({ type: 'error', message: 'Chỉ chấp nhận file PDF' });
 
@@ -44,7 +45,7 @@ const UploadCV = ({ onUploadSuccess }) => {
     setUploadedFile(file);
 
     try {
-      const raw = await uploadCV(file);
+      const raw = await uploadCV(file, { provider, model });   // ⚡ gửi đúng format
       const candidate = normalizeResponse(raw);
 
       if (!candidate)
@@ -62,6 +63,7 @@ const UploadCV = ({ onUploadSuccess }) => {
 
     } catch (error) {
       const detail = error?.response?.data?.detail || error?.message || 'Lỗi upload CV';
+      console.error('Upload error:', error);
       setUploadStatus({ type: 'error', message: detail });
     } finally {
       setUploading(false);
@@ -80,6 +82,7 @@ const UploadCV = ({ onUploadSuccess }) => {
 
   const openFileDialog = () => fileInputRef.current?.click();
 
+  /* ------------------------ JSX ------------------------ */
   return (
     <div className="card">
       <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
@@ -125,14 +128,56 @@ const UploadCV = ({ onUploadSuccess }) => {
         )}
       </div>
 
-      {/* Upload Status */}
+      {/* Provider */}
+      <div className="mt-4">
+        <label className="block text-sm font-medium text-gray-700 mb-1">Provider</label>
+        <select
+          className="input-field w-full"
+          value={provider}
+          disabled={uploading}
+          onChange={(e) => {
+            setProvider(e.target.value);
+            setModel(""); // reset model
+          }}
+        >
+          <option value="">-- Chọn Provider --</option>
+
+          {Object.entries(MODEL_PROVIDERS).map(([key, p]) => (
+            <option key={key} value={key}>{p.label}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Model */}
+      <div className="mt-3">
+        <label className="block text-sm font-medium text-gray-700 mb-1">Model</label>
+
+        <select
+          className="input-field w-full"
+          value={model}
+          disabled={!provider || uploading}
+          onChange={(e) => setModel(e.target.value)}
+        >
+          <option value="">-- Chọn Model --</option>
+
+          {provider &&
+            MODEL_PROVIDERS[provider].models.map(m => (
+              <option key={m.id} value={m.id}>
+                {m.label}
+              </option>
+            ))
+          }
+        </select>
+      </div>
+
+      {/* Status */}
       {uploadStatus && (
         <div
           className={`
             mt-4 p-4 rounded-lg flex items-start gap-3 animate-slide-in
             ${uploadStatus.type === 'success'
               ? 'bg-green-50 border border-green-200'
-              : 'bg-red-50 border border-red-200'}
+              : 'bg-red-50 border-red-200 border'}
           `}
         >
           {uploadStatus.type === 'success'
@@ -141,7 +186,9 @@ const UploadCV = ({ onUploadSuccess }) => {
           }
 
           <div>
-            <p className={uploadStatus.type === 'success' ? 'text-green-800 font-medium' : 'text-red-800 font-medium'}>
+            <p className={uploadStatus.type === 'success'
+              ? 'text-green-800 font-medium'
+              : 'text-red-800 font-medium'}>
               {uploadStatus.message}
             </p>
 

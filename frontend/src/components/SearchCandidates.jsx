@@ -1,57 +1,74 @@
-import React, { useState } from 'react';
-import { Search, Loader, Filter, Sparkles } from 'lucide-react';
-import { searchCandidates } from '../services/api';
-import CandidateCard from './CandidateCard.jsx';
+import React, { useState } from "react";
+import { Search, Loader, Filter, Sparkles } from "lucide-react";
+import { searchCandidates } from "../services/api";
+import CandidateCard from "./CandidateCard.jsx";
+import { MODEL_PROVIDERS } from "../modelConfig";
 
 const SearchCandidates = () => {
-  const [jdText, setJdText] = useState('');
+  const [jdText, setJdText] = useState("");
   const [minExp, setMinExp] = useState(0);
   const [topK, setTopK] = useState(10);
-  const [requiredSkills, setRequiredSkills] = useState('');
+  const [requiredSkills, setRequiredSkills] = useState("");
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
 
+  // NEW — Provider + Model
+  const [provider, setProvider] = useState("");
+  const [model, setModel] = useState("");
+
   const handleSearch = async () => {
     if (!jdText.trim()) {
-      alert('Vui lòng nhập mô tả công việc');
+      alert("Vui lòng nhập mô tả công việc");
+      return;
+    }
+    if (!provider || !model) {
+      alert("Hãy chọn provider và model AI");
       return;
     }
 
     setSearching(true);
     try {
-      const data = await searchCandidates(jdText, minExp, topK, requiredSkills);
+      // Pass model as "provider:model_id" format to backend
+      const modelParam = `${provider}:${model}`;
+      const data = await searchCandidates(
+        jdText,
+        minExp,
+        topK,
+        requiredSkills,
+        modelParam
+      );
+
       setResults(data);
     } catch (error) {
-      alert(error.response?.data?.detail || 'Lỗi khi tìm kiếm');
+      console.error("❌ Search error:", error);
+      const errorMsg = error?.response?.data?.detail || "Lỗi khi tìm kiếm";
+      alert(errorMsg);
     } finally {
       setSearching(false);
     }
   };
 
   const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && e.ctrlKey) {
-      handleSearch();
-    }
+    if (e.key === "Enter" && e.ctrlKey) handleSearch();
   };
 
   return (
     <div className="space-y-6">
-      {/* Search Box */}
       <div className="card">
         <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
           <Sparkles className="text-blue-600" size={28} />
           Tìm Kiếm Ứng Viên Thông Minh
         </h2>
 
-        {/* Job Description Input */}
+        {/* Job Description */}
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Mô tả công việc (Job Description)
           </label>
           <textarea
             className="input-field min-h-[150px] resize-y"
-            placeholder="Ví dụ: Cần tuyển Senior Backend Developer với kinh nghiệm Python, FastAPI, Docker, AWS. Ứng viên cần có khả năng làm việc độc lập và teamwork tốt..."
+            placeholder="Nhập mô tả công việc..."
             value={jdText}
             onChange={(e) => setJdText(e.target.value)}
             onKeyDown={handleKeyPress}
@@ -61,16 +78,59 @@ const SearchCandidates = () => {
           </p>
         </div>
 
+        {/* Provider */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Provider AI
+          </label>
+          <select
+            className="input-field w-full"
+            value={provider}
+            onChange={(e) => {
+              const p = e.target.value;
+              setProvider(p);
+              setModel(""); // reset model
+            }}
+          >
+            <option value="">-- Chọn Provider --</option>
+            {Object.entries(MODEL_PROVIDERS).map(([key, value]) => (
+              <option key={key} value={key}>
+                {value.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Model */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Model AI
+          </label>
+          <select
+            className="input-field w-full"
+            value={model}
+            disabled={!provider}
+            onChange={(e) => setModel(e.target.value)}
+          >
+            {!provider && <option>Chọn provider trước</option>}
+            {provider &&
+              MODEL_PROVIDERS[provider].models.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label}
+                </option>
+              ))}
+          </select>
+        </div>
+
         {/* Filters Toggle */}
         <button
           onClick={() => setShowFilters(!showFilters)}
           className="btn-secondary mb-4 flex items-center gap-2"
         >
           <Filter size={18} />
-          {showFilters ? 'Ẩn bộ lọc' : 'Hiện bộ lọc nâng cao'}
+          {showFilters ? "Ẩn bộ lọc" : "Hiện bộ lọc nâng cao"}
         </button>
 
-        {/* Advanced Filters */}
         {showFilters && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
             <div>
@@ -88,7 +148,7 @@ const SearchCandidates = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Số lượng kết quả
+                Số lượng kết quả (Top-K)
               </label>
               <input
                 type="number"
@@ -102,7 +162,7 @@ const SearchCandidates = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Kỹ năng bắt buộc (ngăn cách bởi dấu phẩy)
+                Kỹ năng bắt buộc
               </label>
               <input
                 type="text"
@@ -142,6 +202,7 @@ const SearchCandidates = () => {
             <h3 className="text-xl font-bold">
               Kết quả tìm kiếm ({results.total} ứng viên)
             </h3>
+
             {results.query_info && (
               <div className="text-sm text-gray-500">
                 {results.query_info.min_exp > 0 && (
@@ -149,11 +210,13 @@ const SearchCandidates = () => {
                     Tối thiểu {results.query_info.min_exp} năm KN
                   </span>
                 )}
-                {results.query_info.required_skills && (
-                  <span className="badge badge-warning">
-                    Yêu cầu: {results.query_info.required_skills.join(', ')}
-                  </span>
-                )}
+
+                {results.query_info.required_skills &&
+                  results.query_info.required_skills.length > 0 && (
+                    <span className="badge badge-warning">
+                      Yêu cầu: {results.query_info.required_skills.join(", ")}
+                    </span>
+                  )}
               </div>
             )}
           </div>
@@ -162,7 +225,6 @@ const SearchCandidates = () => {
             <div className="text-center py-12 text-gray-500">
               <Search size={48} className="mx-auto mb-4 opacity-50" />
               <p>Không tìm thấy ứng viên phù hợp</p>
-              <p className="text-sm mt-2">Thử điều chỉnh bộ lọc hoặc mô tả công việc</p>
             </div>
           ) : (
             <div className="space-y-4">
